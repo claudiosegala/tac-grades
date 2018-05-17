@@ -1,0 +1,52 @@
+<meta http-equiv="content-type" content="text/html; charset=UTF-8">
+<script src="https://code.jquery.com/jquery-3.3.1.min.js"></script>
+<script src="main.js">
+<table id="fields">
+  <tr><td class="field">Primeiro dia de aula<br /><span class="normal-font">(mm/dd/yyyy)</span></td><td><input id="start" type="date" value="2018-03-05"/></td></tr>
+  <tr><td class="field">Último dia de aula<br /><span class="normal-font">(mm/dd/yyyy)</span></td><td><input id="finish" type="date" value="2018-07-06"/></td></tr>
+  <tr><td class="field">Número mínimo de competições</td><td><input id="rounds" type="number" value="5" /></td></tr>
+  <tr><td class="field">Score nota 10</td><td><input id="scale" type="number" value="1800"/></td></tr>
+  <tr><td class="field" valign="top">Handles<br /><span class="normal-font">(um por linha)</span></td><td><textarea id="handles" rows="20" cols="40">
+MMello
+Veras
+Gtaumaturgo
+Lius
+Nson
+AndreBtt
+claudiosegala
+  </textarea></td></tr>
+</table>
+<button>Calcular menções</button>
+<h1 id="msg1"></h1>
+<h1 id="msg2"></h1>
+<div id="invalids"></div>
+<table id="result"></table>
+<style>
+  .normal-font {
+    font-weight: normal;
+  }
+  table#fields {
+    border-collapse: collapse;
+    margin: 5px;
+  }
+  table#fields td {
+    border: 1px solid;
+    padding: 5px;
+  }
+  table#fields .field {
+    width: 150px;
+    font-weight: bold;
+  }
+  div#invalids {
+    margin-bottom: 20px;
+  }
+  table#result {
+    border-collapse: collapse;
+    font-family: 'Courier New', Courier, mono;
+  }
+  table#result, table#result th, table#result td {
+    border: 2px solid black;
+    padding: 2px 20px;
+    text-align: center;
+  }
+</style>
