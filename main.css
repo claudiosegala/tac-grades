@@ -1,0 +1,33 @@
+.normal-font {
+	font-weight: normal;
+}
+
+table#fields {
+	border-collapse: collapse;
+	margin: 5px;
+}
+
+table#fields td {
+	border: 1px solid;
+	padding: 5px;
+}
+
+table#fields .field {
+	width: 150px;
+	font-weight: bold;
+}
+
+div#invalids {
+	margin-bottom: 20px;
+}
+
+table#result {
+	border-collapse: collapse;
+	font-family: 'Courier New', Courier, mono;
+}
+
+table#result, table#result th, table#result td {
+	border: 2px solid black;
+	padding: 2px 20px;
+	text-align: center;
+}
