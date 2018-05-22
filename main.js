@@ -20,40 +20,49 @@ function invalid(i) {
 	updHandlesBar()
 }
 
+const calculateGrade = (score) => {
+	var s = $("#scale").val()
+	let n = (10 * score) / s
+
+	if (n < 1) return "SR";
+	if (n < 3) return "II";
+	if (n < 5) return "MI";
+	if (n < 7) return "MM";
+	if (n < 9) return "MS";
+
+	return "SS";
+} 
+
 function request_contest(i) {
 	if (i >= contests.length) { // stop recursion
 		// update view
 		var result = [];
 		var rounds = $("#rounds").val();
-		var scale = $("#scale").val();
 
-		for (var handle in users) if ("scores" in users[handle]) {
-			var scores = users[handle].scores;
-			scores.sort((a, b) => (b - a));
+		for (var handle in users) {
+			if ("scores" in users[handle]) {
+				var scores = users[handle].scores;
+				scores.sort((a, b) => (b - a));
 
-			var tmp = {
-				handle: handle,
-				n:      scores.length,
-				score:  0,
-				scores: scores	
-			};
+				var user = {
+					handle:   handle,
+					n_rounds: scores.length,
+					score:    0,
+					scores:   scores	
+				};
 
-			if (rounds <= tmp.n) {
-				for (var j = 0; j < rounds; j++) tmp.score += scores[j];
-				tmp.score /= rounds;
-				tmp.score = Math.round(tmp.score);
+				let hasEnoughRounds = user.n_rounds >= rounds
+
+				if (hasEnoughRounds) {
+					for (var j = 0; j < rounds; j++) user.score += scores[j];
+					user.score /= rounds;
+					user.score = Math.round(user.score);
+				}
+
+				user.grade = calculateGrade(user.score);
+
+				result.push(user);
 			}
-
-			tmp.grade = 10*tmp.score/scale;
-
-			if (tmp.grade < 0.1)    tmp.grade = "SR";
-			else if (tmp.grade < 3) tmp.grade = "II";
-			else if (tmp.grade < 5) tmp.grade = "MI";
-			else if (tmp.grade < 7) tmp.grade = "MM";
-			else if (tmp.grade < 9) tmp.grade = "MS";
-			else                    tmp.grade = "SS";
-
-			result.push(tmp);
 		}
 
 		result.sort((a, b) => {
@@ -71,6 +80,8 @@ function request_contest(i) {
 		}
 
 		$("#contests").html("100");
+
+		return;
 	}	
   
 	// call Codeforces method
@@ -78,7 +89,8 @@ function request_contest(i) {
 		crossDomain: true,
 		url: "http://codeforces.com/api/contest.standings?contestId="+contests[i]+"&handles="+handles,
 		error: (res) => {
-			console.log("Error! Response: " + res);
+			console.log("Error! Response: ");
+			console.log(res);
 		},
 		success: function(res) {
 			// update view
