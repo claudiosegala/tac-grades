@@ -1,3 +1,14 @@
+const min = (a, b) => {
+	return a > b ? b : a;
+};
+
+// Update the handle bar percentage
+const updHandlesBar = () => {
+	handles_cnt++;
+	var percentage = Math.round(100 * min(handles_cnt/handles.length, 1));
+	$("#users").html(percentage);
+};
+
 function invalid(i) {
 	if (invalids == 0) {
 		$("#invalids").append("<b>The following handles were not found:</b><br>");
@@ -6,43 +17,7 @@ function invalid(i) {
 	invalids++;
 	$("#invalids").append(handles[i]+"<br>");
 	handles.splice(i,1);
-	handles_cnt++;
-	$("#users").html(Math.round(100*handles_cnt/handles_tot));
-}
-
-function compute() {
-	// update view
-	$("#msg1").html("Requisitando usuários: <span id=\"users\">0</span>%");
-	$("#msg2").html("Requisitando competições: <span id=\"contests\">0</span>%");
-	$("#invalids").html("");
-	$("#result").html("");
-
-	// init start time
-	start = new Date($("#start").val()).getTime()/1000;
-	finish = new Date($("#finish").val()).getTime()/1000 + 86400;
-
-	// init handles
-	handles = {};
-	var tmp = $("#handles").val().split("\n");
-	for (var i = 0; i < tmp.length; i++) {
-		tmp[i] = tmp[i].trim().toLowerCase();
-		if (tmp[i].length == 0) continue;
-		handles[tmp[i]] = "handle";
-	}
-	var tmp = [];
-	for (var handle in handles) if (handles[handle] == "handle") {
-		tmp.push(handle); 
-	}
-
-	handles = tmp;
-	handles_tot = handles.length;
-	handles_cnt = 0;
-
-	invalids = 0; // init invalid handles count
-
-	contests = {}; // init contests
-
-	request_user(0);
+	updHandlesBar()
 }
 
 function request_contest(i) {
@@ -51,30 +26,37 @@ function request_contest(i) {
 		var result = [];
 		var rounds = $("#rounds").val();
 		var scale = $("#scale").val();
+
 		for (var handle in users) if ("scores" in users[handle]) {
 			var scores = users[handle].scores;
-			scores.sort(function(a,b){return b-a;});
-			var tmp = {};
-			tmp.handle = handle;
-			tmp.n = scores.length;
-			tmp.score = 0;
-			tmp.scores = scores;
+			scores.sort((a, b) => (b - a));
+
+			var tmp = {
+				handle: handle,
+				n:      scores.length,
+				score:  0,
+				scores: scores	
+			};
+
 			if (rounds <= tmp.n) {
 				for (var j = 0; j < rounds; j++) tmp.score += scores[j];
 				tmp.score /= rounds;
 				tmp.score = Math.round(tmp.score);
 			}
+
 			tmp.grade = 10*tmp.score/scale;
-			if (tmp.grade < 0.1) tmp.grade = "SR";
-			else if (tmp.grade <   3) tmp.grade = "II";
-			else if (tmp.grade <   5) tmp.grade = "MI";
-			else if (tmp.grade <   7) tmp.grade = "MM";
-			else if (tmp.grade <   9) tmp.grade = "MS";
-			else                      tmp.grade = "SS";
+
+			if (tmp.grade < 0.1)    tmp.grade = "SR";
+			else if (tmp.grade < 3) tmp.grade = "II";
+			else if (tmp.grade < 5) tmp.grade = "MI";
+			else if (tmp.grade < 7) tmp.grade = "MM";
+			else if (tmp.grade < 9) tmp.grade = "MS";
+			else                    tmp.grade = "SS";
+
 			result.push(tmp);
 		}
 
-		result.sort(function(a,b) {
+		result.sort((a, b) => {
 			if (a.grade != "SR" && b.grade == "SR") return -1;
 			if (a.grade == "SR" && b.grade != "SR") return  1;
 			if (a.score != b.score) return b.score - a.score;
@@ -95,44 +77,40 @@ function request_contest(i) {
 	$.ajax({
 		crossDomain: true,
 		url: "http://codeforces.com/api/contest.standings?contestId="+contests[i]+"&handles="+handles,
-		error: function() {
-			request_contest(i);
+		error: (res) => {
+			console.log("Error! Response: " + res);
 		},
-		success: function(response) {
-			// call again for this contest
-			if (response.status == "FAILED") {
-				request_contest(i);
-				return;
-			}
-			
+		success: function(res) {
 			// update view
 			$("#contests").html(Math.round(100*(i+1)/contests.length));
+
+			let data = res.result
 			
-			if (response.result.contest.type === "CF") {
+			if (data.contest.type === "CF") {
 				// compute scores
-				for (var j = 0; j < response.result.rows.length; j++) {
+				for (var j = 0; j < data.rows.length; j++) {
 					var score = 0;
-					for (var k = 0; k < response.result.rows[j].problemResults.length; k++) {
-						score += response.result.rows[j].problemResults[k].points;
+					for (var k = 0; k < data.rows[j].problemResults.length; k++) {
+						score += data.rows[j].problemResults[k].points;
 					}
-					var handle = response.result.rows[j].party.members[0].handle;
+					var handle = data.rows[j].party.members[0].handle;
 					users[handle].scores.push(score);
 				}
-			} else if (response.result.contest.type === "ICPC") {
+			} else if (data.contest.type === "ICPC") {
 				// compute scores
-				for (var j = 0; j < response.result.rows.length; j++) {
+				for (var j = 0; j < data.rows.length; j++) {
 					var score = 0;
-					for (var k = 0; k < response.result.rows[j].problemResults.length; k++) {
-						if (response.result.rows[j].problemResults[k].points === 0) continue;
-						var bestSubmission = Math.floor(response.result.rows[j].problemResults[k].bestSubmissionTimeSeconds / 60);
-						var rejectedAttempts = response.result.rows[j].problemResults[k].rejectedAttemptCount;
+					for (var k = 0; k < data.rows[j].problemResults.length; k++) {
+						if (data.rows[j].problemResults[k].points === 0) continue;
+						var bestSubmission = Math.floor(data.rows[j].problemResults[k].bestSubmissionTimeSeconds / 60);
+						var rejectedAttempts = data.rows[j].problemResults[k].rejectedAttemptCount;
 						var problem_score = 500 * (k+1);
 						var score_when_solved = problem_score * (1 - (0.004) * (bestSubmission));
 						var score_with_penalties = score_when_solved - (50 * rejectedAttempts);
 						var final_score = Math.max(score_with_penalties, problem_score * 0.3);
 						score += final_score;
 					}
-					var handle = response.result.rows[j].party.members[0].handle;
+					var handle = data.rows[j].party.members[0].handle;
 					users[handle].scores.push(score);
 				}
 			}
@@ -146,13 +124,11 @@ function request_contest(i) {
 function request_user(i) {
 	// stop recursion
 	if (i >= handles.length) {
-		// update view
-		$("#users").html("100");
+		updHandlesBar();
 
-		// compute contest ids
-		var tmp = [];
-		for (var j in contests) if (contests[j] == "contest") tmp.push(j);
-		contests = tmp;
+		// get contest ids
+		contests = map(contests, c => c.contestId)
+		contests = unique(contests);
 
 		// compute handle list with semicolon and init users object
 		tmp = "";
@@ -175,37 +151,54 @@ function request_user(i) {
 	// call Codeforces method
 	$.ajax({
 		crossDomain: true,
-		url: "http://codeforces.com/api/user.rating?handle="+handles[i],
-		error: function(xhr) {
-		if (xhr.status == 400) invalid(i);
-			request_user(i);
+		url: "http://codeforces.com/api/user.rating?handle=" + handles[i],
+		error:   (res) => {
+			invalid(i);
 		},
-		success: function(response) {
-		// call again for this user
-		if (response.status == "FAILED") {
-		if (response.comment.indexOf("not found") != -1) invalid(i);
-			request_user(i);
-			return;
-		}
+		success: (res) => {
+			updHandlesBar()
 
-		// update view
-		handles_cnt++;
-		$("#users").html(Math.round(100*handles_cnt/handles_tot));
+			// fix handle (search in case insensitive)
+			handles[i] = empty(res.result) ? handles[i] : res.result[0].handle
 
-		// fix handle
-		if (response.result.length > 0) handles[i] = response.result[0].handle;
+			// filter contest and get only the valid ones
+			var aux = filter(res.result, r => {
+				let time = r.ratingUpdateTimeSeconds;
+				return time >= start && time <= finish;
+			})
 
-		// compute contests
-		for (var j = 0; j < response.result.length; j++) {
-			var t = response.result[j].ratingUpdateTimeSeconds;
-			if (t < start || finish <= t) continue;
-			contests[response.result[j].contestId] = "contest";
-		}
+			contests = concat(contests, aux);
 
-		// call for next user
-		request_user(i+1);
+			// call for next user
+			request_user(i+1)
 		}
 	})
+}
+
+function compute() {
+	// update view
+	$("#msg1").html("Requisitando usuários: <span id=\"users\">0</span>%");
+	$("#msg2").html("Requisitando competições: <span id=\"contests\">0</span>%");
+	$("#invalids").html("");
+	$("#result").html("");
+
+	// init start time
+	start = new Date($("#start").val()).getTime()/1000;
+	finish = new Date($("#finish").val()).getTime()/1000 + 86400;
+
+	// init handles
+	let aux = $("#handles").val().split("\n");
+
+	handles = map(aux, a => a.trim().toLowerCase());
+	handles = filter(handles, h => h.length);
+	handles = unique(handles);
+	handles_cnt = 0;
+
+	invalids = 0; // init invalid handles count
+
+	contests = []; // init contests
+
+	request_user(0);
 }
 
 $(document).ready(function() {
