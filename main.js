@@ -1,3 +1,6 @@
+let html = {}
+let data = {}
+
 const min = (a, b) => {
 	return a > b ? b : a;
 };
@@ -6,8 +9,14 @@ const min = (a, b) => {
 const updHandlesBar = () => {
 	handles_cnt++;
 	var percentage = Math.round(100 * min(handles_cnt/handles.length, 1));
-	$("#users").html(percentage);
+
+	html.handlesPercentage.textContent = percentage;
 };
+
+const toggleVisibility = (x) => {
+	const isCurrentlyNone = (x.style.display === "none" || x.style.display === "")
+	x.style.display = isCurrentlyNone ? "block" : "none"
+}
 
 function invalid(i) {
 	if (invalids == 0) {
@@ -73,10 +82,13 @@ function request_contest(i) {
 			return 0;
 		});
 
-		$("#result").html("");
-		$("#result").append($("<tr><th>#</th><th>Handle</th><th>Competições</th><th>Score</th><th>Menção</th><th>Maiores 5 pontuações</th></tr>"));
+		toggleVisibility(html.loadingHandles)
+		toggleVisibility(html.loadingContests)
+
+		$("#results").html("");
+		$("#results").append($("<tr><th>#</th><th>Handle</th><th>Competições</th><th>Score</th><th>Menção</th><th>Maiores 5 pontuações</th></tr>"));
 		for (var j = 0; j < result.length; j++) {
-			$("#result").append($("<tr><td>"+(j+1)+"</td><td>"+result[j].handle+"</td><td>"+result[j].n+"</td><td>"+result[j].score+"</td><td>"+result[j].grade+"</td><td>"+result[j].scores[0]+" | "+result[j].scores[1]+" | "+result[j].scores[2]+" | "+result[j].scores[3]+" | "+result[j].scores[4]+"</td></tr>"));
+			$("#results").append($("<tr><td>"+(j+1)+"</td><td>"+result[j].handle+"</td><td>"+result[j].n+"</td><td>"+result[j].score+"</td><td>"+result[j].grade+"</td><td>"+result[j].scores[0]+" | "+result[j].scores[1]+" | "+result[j].scores[2]+" | "+result[j].scores[3]+" | "+result[j].scores[4]+"</td></tr>"));
 		}
 
 		$("#contests").html("100");
@@ -155,7 +167,8 @@ function request_user(i) {
 		}
 		handles = tmp;
 		if (handles == "") return;
-
+		
+		toggleVisibility(html.loadingContests)
 		request_contest(0);
 		return;
 	}
@@ -187,19 +200,28 @@ function request_user(i) {
 	})
 }
 
+const getUser = (handle) => {
+	return $.ajax({
+		crossDomain: true,
+		url: "http://codeforces.com/api/user.rating?handle=" + handle,
+		error: (res) => {
+			console.log(res);
+		},
+		success: (res) => {
+			console.log(res);
+		}
+	})
+}
+
 function compute() {
-	// update view
-	$("#msg1").html("Requisitando usuários: <span id=\"users\">0</span>%");
-	$("#msg2").html("Requisitando competições: <span id=\"contests\">0</span>%");
-	$("#invalids").html("");
-	$("#result").html("");
+	toggleVisibility(html.loadingHandles)
 
 	// init start time
-	start = new Date($("#start").val()).getTime()/1000;
-	finish = new Date($("#finish").val()).getTime()/1000 + 86400;
+	start = new Date(html.start.val()).getTime()/1000;
+	finish = new Date(html.finish.val()).getTime()/1000 + 86400;
 
 	// init handles
-	let aux = $("#handles").val().split("\n");
+	let aux = html.handles.val().split("\n");
 
 	handles = map(aux, a => a.trim().toLowerCase());
 	handles = filter(handles, h => h.length);
@@ -210,9 +232,25 @@ function compute() {
 
 	contests = []; // init contests
 
-	request_user(0);
+	// request_user(0);
+
+	var promises = [] 
+
+	promises = map(handles, handle => getUser(handle))
+	Promise.all(promises,(resuls) => () => {
+		toggleVisibility(html.loadingHandles)
+	})
 }
 
 $(document).ready(function() {
+	html.start = $("#start")
+	html.finish = $("#finish")
+	html.handles = $("#handles")
+	html.handlesPercentage = document.getElementById('users')
+	html.loadingHandles = document.getElementById('loadingHandles')
+	html.loadingContests = document.getElementById('loadingContests')
+	html.invalidHandles = document.getElementById('invalidHandles')
+	html.results = document.getElementById('results')
+
 	$("button").click(compute);
 });

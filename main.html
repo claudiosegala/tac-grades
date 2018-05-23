@@ -9,19 +9,16 @@
 		<script src="main.js"></script>
 	</head>
 	<body>
+		<span class="normal-font">Preencha as datas no formato: mm/dd/yyyy</span>
+		<span class="normal-font">Preencha um handle por linha</span>
 		<table id="fields">
 			<tr>
-				<td class="field">Primeiro dia de aula<br />
-					<span class="normal-font">(mm/dd/yyyy)</span>
-				</td>
-				<td>
-					<input id="start" type="date" value="2018-03-05"/>
-				</td>
+				<td class="field">Primeiro dia de aula<br /></td>
+				<td><input id="start" type="date" value="2018-03-05"/></td>
 			</tr>
 			<tr>
-				<td class="field">Último dia de aula<br />
-					<span class="normal-font">(mm/dd/yyyy)</span></td><td><input id="finish" type="date" value="2018-07-06"/>
-				</td>
+				<td class="field">Último dia de aula<br /></td>
+				<td><input id="finish" type="date" value="2018-07-06"/></td>
 			</tr>
 			<tr>
 				<td class="field">Número mínimo de competições</td><td><input id="rounds" type="number" value="5" />
@@ -34,11 +31,8 @@
 				</td>
 			</tr>
 			<tr>
-				<td class="field" valign="top">Handles<br />
-					<span class="normal-font">(um por linha)</span>
-				</td>
-				<td>
-					<textarea id="handles" rows="20" cols="40">
+				<td class="field" valign="top">Handles<br /></td>
+				<td><textarea id="handles" rows="10" cols="20">
 MMello
 Veras
 Gtaumaturgo
@@ -51,11 +45,15 @@ claudiosegala
 			</tr>
 		</table>
 
-		<button>Calcular menções</button>
+		<br /><button>Calcular menções</button><br />
 
-		<h1 id="msg1"></h1>
-		<h1 id="msg2"></h1>
-		<div id="invalids"></div>
-		<table id="result"></table>
+		<span class="hidden" id="loadingHandles">
+			Requisitando usuários: <span id="users">0</span>%
+		</span>
+		<span class="hidden" id="loadingContests">
+			Requisitando competições: <span id="contests">0</span>%
+		</span>
+		<div id="invalidHandles"></div>
+		<table id="results"></table>
 	</body>
 </html>

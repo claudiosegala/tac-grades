@@ -1,3 +1,10 @@
+body {
+	display: flex;
+	justify-content: center;
+	align-items: center;
+	flex-direction: column;
+}
+
 .normal-font {
 	font-weight: normal;
 }
@@ -17,17 +24,21 @@ table#fields .field {
 	font-weight: bold;
 }
 
-div#invalids {
+div#invalidHandles {
 	margin-bottom: 20px;
 }
 
-table#result {
+table#results {
 	border-collapse: collapse;
 	font-family: 'Courier New', Courier, mono;
 }
 
-table#result, table#result th, table#result td {
+table#results, table#results th, table#results td {
 	border: 2px solid black;
 	padding: 2px 20px;
 	text-align: center;
+}
+
+.hidden {
+	display: none;
 }
