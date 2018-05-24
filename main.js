@@ -1,5 +1,6 @@
 let html = {}
 let data = {}
+let state = {}
 
 const min = (a, b) => {
 	return a > b ? b : a;
@@ -42,11 +43,23 @@ const calculateGrade = (score) => {
 	return "SS";
 } 
 
+const showResults = (results) => {
+	$("#results").html("");
+	$("#results").append($("<tr><th>#</th><th>Handle</th><th>Competições</th><th>Score</th><th>Menção</th><th>Maiores 5 pontuações</th></tr>"));
+	each(results, (r, i) => {
+		let n = "<td>"+i+1+"</td>"
+		let handle = "<td>"+r.handle+"</td>"
+		let n_rounds = "<td>"+r.n+"</td>"
+		let score = "<td>"+r.score+"</td>"
+		let grade = "<td>"+r.grade+"</td>"
+		let scores = "<td>"+r.scores[0]+" | "+r.scores[1]+" | "+r.scores[2]+" | "+r.scores[3]+" | "+r.scores[4]+"</td>"
+		$("#results").append($("<tr>" + n + handle + n_rounds + score + grade + score + "</tr>"));
+	})
+}
+
 function request_contest(i) {
-	if (i >= contests.length) { // stop recursion
-		// update view
+	if (i >= contests.length) {
 		var result = [];
-		var rounds = $("#rounds").val();
 
 		for (var handle in users) {
 			if ("scores" in users[handle]) {
@@ -60,11 +73,13 @@ function request_contest(i) {
 					scores:   scores	
 				};
 
-				let hasEnoughRounds = user.n_rounds >= rounds
+				let hasEnoughRounds = user.n_rounds >= state.rounds
 
 				if (hasEnoughRounds) {
-					for (var j = 0; j < rounds; j++) user.score += scores[j];
-					user.score /= rounds;
+					for (var j = 0; j < state.rounds; j++) {
+						user.score += scores[j];
+					}
+					user.score /= state.rounds;
 					user.score = Math.round(user.score);
 				}
 
@@ -74,6 +89,9 @@ function request_contest(i) {
 			}
 		}
 
+		toggleVisibility(html.loadingHandles)
+		toggleVisibility(html.loadingContests)
+
 		result.sort((a, b) => {
 			if (a.grade != "SR" && b.grade == "SR") return -1;
 			if (a.grade == "SR" && b.grade != "SR") return  1;
@@ -82,24 +100,15 @@ function request_contest(i) {
 			return 0;
 		});
 
-		toggleVisibility(html.loadingHandles)
-		toggleVisibility(html.loadingContests)
+		showResults(result)
 
-		$("#results").html("");
-		$("#results").append($("<tr><th>#</th><th>Handle</th><th>Competições</th><th>Score</th><th>Menção</th><th>Maiores 5 pontuações</th></tr>"));
-		for (var j = 0; j < result.length; j++) {
-			$("#results").append($("<tr><td>"+(j+1)+"</td><td>"+result[j].handle+"</td><td>"+result[j].n+"</td><td>"+result[j].score+"</td><td>"+result[j].grade+"</td><td>"+result[j].scores[0]+" | "+result[j].scores[1]+" | "+result[j].scores[2]+" | "+result[j].scores[3]+" | "+result[j].scores[4]+"</td></tr>"));
-		}
-
-		$("#contests").html("100");
-
-		return;
+		return
 	}	
   
 	// call Codeforces method
 	$.ajax({
 		crossDomain: true,
-		url: "http://codeforces.com/api/contest.standings?contestId="+contests[i]+"&handles="+handles,
+		url: "https://codeforces.com/api/contest.standings?contestId="+contests[i]+"&handles="+handles,
 		error: (res) => {
 			console.log("Error! Response: ");
 			console.log(res);
@@ -176,7 +185,7 @@ function request_user(i) {
 	// call Codeforces method
 	$.ajax({
 		crossDomain: true,
-		url: "http://codeforces.com/api/user.rating?handle=" + handles[i],
+		url: "https://codeforces.com/api/user.rating?handle=" + handles[i],
 		error:   (res) => {
 			invalid(i);
 		},
@@ -200,52 +209,33 @@ function request_user(i) {
 	})
 }
 
-const getUser = (handle) => {
-	return $.ajax({
-		crossDomain: true,
-		url: "http://codeforces.com/api/user.rating?handle=" + handle,
-		error: (res) => {
-			console.log(res);
-		},
-		success: (res) => {
-			console.log(res);
-		}
-	})
-}
-
 function compute() {
-	toggleVisibility(html.loadingHandles)
+	state.start = new Date($("#start").val()).getTime()/1000;
+	state.finish = new Date($("#finish").val()).getTime()/1000 + 86400;
+	state.rounds = $("#rounds").val()
 
-	// init start time
-	start = new Date(html.start.val()).getTime()/1000;
-	finish = new Date(html.finish.val()).getTime()/1000 + 86400;
+	start = state.start
+	finish = state.finish
 
-	// init handles
-	let aux = html.handles.val().split("\n");
+	let aux = $("#handles").val().split("\n")
 
-	handles = map(aux, a => a.trim().toLowerCase());
-	handles = filter(handles, h => h.length);
-	handles = unique(handles);
+	aux = map(aux, a => a.trim().toLowerCase())
+	aux = filter(aux, h => h.length)
+	aux = unique(aux)
+
+	state.handles = aux
+	
+	handles = aux
 	handles_cnt = 0;
-
 	invalids = 0; // init invalid handles count
-
 	contests = []; // init contests
 
-	// request_user(0);
+	toggleVisibility(html.loadingHandles)
 
-	var promises = [] 
-
-	promises = map(handles, handle => getUser(handle))
-	Promise.all(promises,(resuls) => () => {
-		toggleVisibility(html.loadingHandles)
-	})
+	request_user(0);
 }
 
 $(document).ready(function() {
-	html.start = $("#start")
-	html.finish = $("#finish")
-	html.handles = $("#handles")
 	html.handlesPercentage = document.getElementById('users')
 	html.loadingHandles = document.getElementById('loadingHandles')
 	html.loadingContests = document.getElementById('loadingContests')
