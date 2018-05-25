@@ -1,4 +1,4 @@
-body {
+.cont {
 	display: flex;
 	justify-content: center;
 	align-items: center;
@@ -9,34 +9,8 @@ body {
 	font-weight: normal;
 }
 
-table#fields {
-	border-collapse: collapse;
-	margin: 5px;
-}
-
-table#fields td {
-	border: 1px solid;
-	padding: 5px;
-}
-
-table#fields .field {
-	width: 150px;
-	font-weight: bold;
-}
-
-div#invalidHandles {
-	margin-bottom: 20px;
-}
-
-table#results {
-	border-collapse: collapse;
-	font-family: 'Courier New', Courier, mono;
-}
-
-table#results, table#results th, table#results td {
-	border: 2px solid black;
-	padding: 2px 20px;
-	text-align: center;
+#results {
+	width: 100%;
 }
 
 .hidden {

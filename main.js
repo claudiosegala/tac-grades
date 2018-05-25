@@ -3,34 +3,27 @@ let data = {}
 let state = {}
 let users = {}
 let handles = {}
+let contests = []
 
-const min = (a, b) => {
-	return a > b ? b : a;
-};
-
-// Update the handle bar percentage
-const updHandlesBar = (i) => html.handlesPercentage.textContent = Math.round(100 * (i+1)/state.handles.length)
-
-// Update the contest bar percentage
-const updContestsBar = (i) => html.contestsPercentage.textContent = Math.round(100 * (i+1)/contests.length)
-
-// Hid if shown and show if hidden
-const toggleVisibility = (x) => {
-	const isCurrentlyNone = (x.style.display === "none" || x.style.display === "")
-	x.style.display = isCurrentlyNone ? "block" : "none"
-}
+// Loader
+const infoLoader = (t) => $("#loading-text").text(t)
+const initLoader = () => $("#preloader").css('width', '0%')
+const updLoader  = (i, j) => $("#preloader").css('width', Math.round(100 * (i+1)/j) + '%')
+const showLoader = () => $("#loading").removeClass("hidden")
+const hidLoader  = () => $("#loading").addClass("hidden")
 
 function invalid(i) {
-	if (invalids == 0) {
+	if (state.invalids == 0) {
 		$("#invalids").append("<b>The following handles were not found:</b><br>");
 	}
 
-	invalids++;
+	state.invalids++;
 	$("#invalids").append(state.handles[i]+"<br>");
 	state.handles.splice(i,1);
-	updHandlesBar()
+	updLoader(i, state.handles.length)
 }
 
+// Put the grade in the form of UnB
 const calculateGrade = (score) => {
 	var s = $("#scale").val()
 	let n = (10 * score) / s
@@ -45,11 +38,14 @@ const calculateGrade = (score) => {
 } 
 
 const showResults = (results) => {
-	var resultsTable = $("#results")
-	resultsTable.html("");
-	resultsTable.append($("<tr><th>#</th><th>Handle</th><th>Competições</th><th>Score</th><th>Menção</th><th>Maiores 5 pontuações</th></tr>"));
+	hidLoader()
+
+	var resultsTable = $("#results-rows")
+	resultsTable.html('');
+	console.log(resultsTable)
+
 	each(results, (r, i) => {
-		let n = "<td>"+i+1+"</td>"
+		let n = "<td>"+(i+1)+"</td>"
 		let handle = "<td>"+r.handle+"</td>"
 		let n_rounds = "<td>"+r.n_rounds+"</td>"
 		let score = "<td>"+r.score+"</td>"
@@ -57,6 +53,8 @@ const showResults = (results) => {
 		let scores = "<td>"+r.scores[0]+" | "+r.scores[1]+" | "+r.scores[2]+" | "+r.scores[3]+" | "+r.scores[4]+"</td>"
 		resultsTable.append($("<tr>" + n + handle + n_rounds + score + grade + scores + "</tr>"));
 	})
+
+	$("#results").removeClass("hidden")
 }
 
 function request_contests(_handles, i = 0) {
@@ -92,9 +90,6 @@ function request_contests(_handles, i = 0) {
 			}
 		}
 
-		toggleVisibility(html.loadingHandles)
-		toggleVisibility(html.loadingContests)
-
 		result.sort((a, b) => {
 			if (a.grade != "SR" && b.grade == "SR") return -1;
 			if (a.grade == "SR" && b.grade != "SR") return  1;
@@ -116,7 +111,7 @@ function request_contests(_handles, i = 0) {
 			console.log(res);
 		},
 		success: function(res) {
-			updContestsBar(i)
+			updLoader(i, contests.length)
 
 			let data = res.result
 			
@@ -168,6 +163,12 @@ const initUsers = () => {
 	}
 }
 
+const initRequestContests = () => {
+	initLoader()
+	infoLoader("Requesting contests...")
+	request_contests(state.handles.join(";"))
+}
+
 // Get rating changes for each user
 // With that get all the contest each participated
 function request_users (i = 0) {
@@ -176,9 +177,7 @@ function request_users (i = 0) {
 
 		initUsers()
 
-		toggleVisibility(html.loadingContests)
-
-		request_contests(state.handles.join(";"))
+		initRequestContests()
 		
 		return;
 	}
@@ -190,7 +189,7 @@ function request_users (i = 0) {
 			invalid(i);
 		},
 		success: (res) => {
-			updHandlesBar(i)
+			updLoader(i, state.handles.length)
 
 			// fix handle (search in case insensitive)
 			state.handles[i] = empty(res.result) ? state.handles[i] : res.result[0].handle
@@ -204,8 +203,21 @@ function request_users (i = 0) {
 	})
 }
 
-// Prepare data for requesting codeforces
-function compute() {
+const initRequestUsers = () => {
+	initLoader()
+	infoLoader("Requesting users...")
+	showLoader()
+
+	request_users();	
+}
+
+const fillState = () => {
+	// get time
+	// let f = $('#first_day').datepicker().pickadate(); // init datepicker
+	// let l = $('#last_day').datepicker().pickadate(); // init datepicker
+	// l.set('select', '10-04-2016', { format: 'dd-mm-yyyy' })
+	// console.log(state.start.pickadate().get())
+	// console.log($("#start").val())
 	state.start = new Date($("#start").val()).getTime()/1000;
 	state.finish = new Date($("#finish").val()).getTime()/1000 + 86400;
 	state.rounds = $("#rounds").val()
@@ -213,6 +225,7 @@ function compute() {
 	start = state.start
 	finish = state.finish
 
+	// get hadles
 	let aux = $("#handles").val().split("\n")
 
 	aux = map(aux, a => a.trim().toLowerCase())
@@ -220,26 +233,29 @@ function compute() {
 	aux = unique(aux)
 
 	state.handles = aux
-	
-	handles_cnt = 0;
-	invalids = 0; // init invalid handles count
-	contests = []; // init contests
 
-	toggleVisibility(html.loadingHandles)
+	// init 
+	state.invalids = 0
+}
 
-	request_users();
+// Prepare data for requesting codeforces
+function compute() {
+	fillState()
+	initRequestUsers()
 }
 
 // Prepare DOM variable and init computation
 $(document).ready(function() {
+	// state.start = $('#first_day').datepicker()
+	// state.finish = $('#last_day').datepicker()
+
 	html = {
-		handlesPercentage: document.getElementById('users'),
-		contestsPercentage: document.getElementById('contests'),
-		loadingHandles: document.getElementById('loadingHandles'),
-		loadingContests: document.getElementById('loadingContests'),
+		loading: $("#loading"),
 		invalidHandles: document.getElementById('invalidHandles'),
 		results: document.getElementById('results')
 	}
 
-	$("button").click(compute);
+	contests = []; // init contests
+
+	$("#init").click(compute);
 });
