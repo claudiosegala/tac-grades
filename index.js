@@ -25,7 +25,7 @@ function invalid(i) {
 
 // Put the grade in the form of UnB
 const calculateGrade = (score) => {
-	var s = $("#scale").val()
+	let s = $("#scale").val()
 	let n = (10 * score) / s
 
 	if (n < 1) return "SR";
@@ -40,7 +40,7 @@ const calculateGrade = (score) => {
 const showResults = (results) => {
 	hidLoader()
 
-	var resultsTable = $("#results-rows")
+	let resultsTable = $("#results-rows")
 	resultsTable.html('');
 	console.log(resultsTable)
 
@@ -51,55 +51,59 @@ const showResults = (results) => {
 		let score = "<td>"+r.score+"</td>"
 		let grade = "<td>"+r.grade+"</td>"
 		let scores = "<td>"+r.scores[0]+" | "+r.scores[1]+" | "+r.scores[2]+" | "+r.scores[3]+" | "+r.scores[4]+"</td>"
-		resultsTable.append($("<tr>" + n + handle + n_rounds + score + grade + scores + "</tr>"));
+		resultsTable.append($("<tr>" + n + handle + n_rounds + score + grade + scores + "</tr>"))
 	})
 
 	$("#results").removeClass("hidden")
 }
 
+const processContests = () => {
+	let result = [];
+
+	for (let handle in users) {
+		if ("scores" in users[handle]) {
+			let scores = users[handle].scores;
+			scores.sort((a, b) => (b - a));
+
+			let user = {
+				handle:   handle,
+				n_rounds: scores.length,
+				score:    0,
+				scores:   scores	
+			};
+
+			const hasEnoughRounds = user.n_rounds >= state.rounds
+
+			if (hasEnoughRounds) {
+				for (let j = 0; j < state.rounds; j++) {
+					user.score += scores[j];
+				}
+				user.score /= state.rounds;
+				user.score = Math.round(user.score);
+			}
+
+			user.grade = calculateGrade(user.score);
+
+			result.push(user);
+		}
+	}
+
+	result.sort((a, b) => {
+		if (a.grade != "SR" && b.grade == "SR") return -1;
+		if (a.grade == "SR" && b.grade != "SR") return  1;
+		if (a.score != b.score) return b.score - a.score;
+		if (a.n != b.n) return b.n - a.n;
+		return 0;
+	});
+
+	return result;
+}
+
 function request_contests(_handles, i = 0) {
 	if (_handles == "") return;
 	if (i >= contests.length) {
-		var result = [];
-
-		for (var handle in users) {
-			if ("scores" in users[handle]) {
-				var scores = users[handle].scores;
-				scores.sort((a, b) => (b - a));
-
-				var user = {
-					handle:   handle,
-					n_rounds: scores.length,
-					score:    0,
-					scores:   scores	
-				};
-
-				let hasEnoughRounds = user.n_rounds >= state.rounds
-
-				if (hasEnoughRounds) {
-					for (var j = 0; j < state.rounds; j++) {
-						user.score += scores[j];
-					}
-					user.score /= state.rounds;
-					user.score = Math.round(user.score);
-				}
-
-				user.grade = calculateGrade(user.score);
-
-				result.push(user);
-			}
-		}
-
-		result.sort((a, b) => {
-			if (a.grade != "SR" && b.grade == "SR") return -1;
-			if (a.grade == "SR" && b.grade != "SR") return  1;
-			if (a.score != b.score) return b.score - a.score;
-			if (a.n != b.n) return b.n - a.n;
-			return 0;
-		});
-
+		const results = processContests()
 		showResults(result)
-
 		return
 	}	
   
@@ -117,29 +121,29 @@ function request_contests(_handles, i = 0) {
 			
 			if (data.contest.type === "CF") {
 				// compute scores
-				for (var j = 0; j < data.rows.length; j++) {
-					var score = 0;
-					for (var k = 0; k < data.rows[j].problemResults.length; k++) {
+				for (let j = 0; j < data.rows.length; j++) {
+					let score = 0;
+					for (let k = 0; k < data.rows[j].problemResults.length; k++) {
 						score += data.rows[j].problemResults[k].points;
 					}
-					var handle = data.rows[j].party.members[0].handle;
+					let handle = data.rows[j].party.members[0].handle;
 					users[handle].scores.push(score);
 				}
 			} else if (data.contest.type === "ICPC") {
 				// compute scores
-				for (var j = 0; j < data.rows.length; j++) {
-					var score = 0;
-					for (var k = 0; k < data.rows[j].problemResults.length; k++) {
+				for (let j = 0; j < data.rows.length; j++) {
+					let score = 0;
+					for (let k = 0; k < data.rows[j].problemResults.length; k++) {
 						if (data.rows[j].problemResults[k].points === 0) continue;
-						var bestSubmission = Math.floor(data.rows[j].problemResults[k].bestSubmissionTimeSeconds / 60);
-						var rejectedAttempts = data.rows[j].problemResults[k].rejectedAttemptCount;
-						var problem_score = 500 * (k+1);
-						var score_when_solved = problem_score * (1 - (0.004) * (bestSubmission));
-						var score_with_penalties = score_when_solved - (50 * rejectedAttempts);
-						var final_score = Math.max(score_with_penalties, problem_score * 0.3);
+						let bestSubmission = Math.floor(data.rows[j].problemResults[k].bestSubmissionTimeSeconds / 60);
+						let rejectedAttempts = data.rows[j].problemResults[k].rejectedAttemptCount;
+						let problem_score = 500 * (k+1);
+						let score_when_solved = problem_score * (1 - (0.004) * (bestSubmission));
+						let score_with_penalties = score_when_solved - (50 * rejectedAttempts);
+						let final_score = Math.max(score_with_penalties, problem_score * 0.3);
 						score += final_score;
 					}
-					var handle = data.rows[j].party.members[0].handle;
+					let handle = data.rows[j].party.members[0].handle;
 					users[handle].scores.push(score);
 				}
 			}
@@ -158,7 +162,7 @@ const filterContests = () => {
 
 // Init user
 const initUsers = () => {
-	for (var j = 0; j < state.handles.length; j++) {
+	for (let j = 0; j < state.handles.length; j++) {
 		users[state.handles[j]] = {scores: []};
 	}
 }
@@ -244,7 +248,7 @@ function compute() {
 	initRequestUsers()
 }
 
-// Prepare DOM variable and init computation
+// Prepare DOM letiable and init computation
 $(document).ready(function() {
 	// state.start = $('#first_day').datepicker()
 	// state.finish = $('#last_day').datepicker()
