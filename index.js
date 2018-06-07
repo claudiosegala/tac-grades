@@ -96,6 +96,40 @@ const processContests = () => {
 	return result
 }
 
+const computeScoresCF = (rows) => {
+    each(rows, (row) => {
+        const score = reduce(row.problemResults, (s, k) => (s + k.points), 0)
+        const handle = row.party.members[0].handle
+        users[handle].scores.push(score)
+    });
+}
+
+const computeScoresICPC = (rows) => {
+    each(data.rows, (row) => {
+        const score = 0
+        row.problemResults = filter(row.problemResults, (res) => (res.points !== 0))
+        each(row.problemResults, (res, i) => {
+            let bestSubmission = Math.floor(res.bestSubmissionTimeSeconds / 60)
+            let rejectedAttempts = res.rejectedAttemptCount
+            let problem_score = 500 * (i+1)
+            let score_when_solved = problem_score * (1 - (0.004) * (bestSubmission))
+            let score_with_penalties = score_when_solved - (50 * rejectedAttempts)
+            let final_score = Math.max(score_with_penalties, problem_score * 0.3)
+            score += final_score
+        })
+        const handle = row.party.members[0].handle
+        users[handle].scores.push(score)
+    })
+} 
+
+const computeScores = (type, rows) => {
+    if (type === "CF") {
+        computeScoresCF(rows)
+    } else if (type === "ICPC") {
+        computeScoresICPC(rows)
+    }
+}
+
 const request_contests = (_handles, i = 0) => {
 	if (_handles == "") return
 	if (i >= contests.length) {
@@ -113,38 +147,7 @@ const request_contests = (_handles, i = 0) => {
 		},
 		success: (res) => {
 			updLoader(i, contests.length)
-
-			let data = res.result
-			
-			if (data.contest.type === "CF") {
-				// compute scores
-				for (let j = 0; j < data.rows.length; j++) {
-					let score = 0
-					for (let k = 0; k < data.rows[j].problemResults.length; k++) {
-						score += data.rows[j].problemResults[k].points
-					}
-					let handle = data.rows[j].party.members[0].handle
-					users[handle].scores.push(score)
-				}
-			} else if (data.contest.type === "ICPC") {
-				// compute scores
-				for (let j = 0; j < data.rows.length; j++) {
-					let score = 0
-					for (let k = 0; k < data.rows[j].problemResults.length; k++) {
-						if (data.rows[j].problemResults[k].points === 0) continue
-						let bestSubmission = Math.floor(data.rows[j].problemResults[k].bestSubmissionTimeSeconds / 60)
-						let rejectedAttempts = data.rows[j].problemResults[k].rejectedAttemptCount
-						let problem_score = 500 * (k+1)
-						let score_when_solved = problem_score * (1 - (0.004) * (bestSubmission))
-						let score_with_penalties = score_when_solved - (50 * rejectedAttempts)
-						let final_score = Math.max(score_with_penalties, problem_score * 0.3)
-						score += final_score
-					}
-					let handle = data.rows[j].party.members[0].handle
-					users[handle].scores.push(score)
-				}
-			}
-			
+			computeScores(res.result.contest.type, res.result.rows)
 			request_contests(_handles, i+1)
 		}
 	})
@@ -159,9 +162,7 @@ const filterContests = () => {
 
 // Init user
 const initUsers = () => {
-	for (let j = 0; j < state.handles.length; j++) {
-		users[state.handles[j]] = { scores: [] }
-	}
+    each(state.handles, (handle) => users[handle] = { score: [] })
 }
 
 const initRequestContests = () => {
@@ -244,7 +245,7 @@ const fillState = () => {
 }
 
 const init = () => {
-	resultsTable.html('')
+    resultsTable.html('')
 }
 
 // Prepare data for requesting codeforces
