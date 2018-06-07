@@ -12,7 +12,7 @@ const updLoader  = (i, j) => $("#preloader").css('width', Math.round(100 * (i+1)
 const showLoader = () => $("#loading").removeClass("hidden")
 const hidLoader  = () => $("#loading").addClass("hidden")
 
-function invalid(i) {
+const invalid = (i) => {
 	if (state.invalids == 0) {
 		$("#invalids").append("<b>The following handles were not found:</b><br>")
 	}
@@ -99,7 +99,7 @@ const processContests = () => {
 	return result
 }
 
-function request_contests(_handles, i = 0) {
+const request_contests = (_handles, i = 0) => {
 	if (_handles == "") return
 	if (i >= contests.length) {
 		const results = processContests()
@@ -114,7 +114,7 @@ function request_contests(_handles, i = 0) {
 			console.log("Error! Response: ")
 			console.log(res)
 		},
-		success: function(res) {
+		success: (res) => {
 			updLoader(i, contests.length)
 
 			let data = res.result
@@ -175,7 +175,7 @@ const initRequestContests = () => {
 
 // Get rating changes for each user
 // With that get all the contest each participated
-function request_users (i = 0) {
+const request_users = (i = 0) => {
 	if (i >= state.handles.length) { // stop recursion and prepare data for requesting contests
 		filterContests()
 		initUsers()
@@ -240,13 +240,13 @@ const fillState = () => {
 }
 
 // Prepare data for requesting codeforces
-function compute() {
+ const compute = () => {
 	fillState()
 	initRequestUsers()
 }
 
 // Prepare DOM letiable and init computation
-$(document).ready(function() {
+$(document).ready(() => {
 	// state.start = $('#first_day').datepicker()
 	// state.finish = $('#last_day').datepicker()
 
