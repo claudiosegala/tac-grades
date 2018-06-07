@@ -103,7 +103,7 @@ const request_contests = (_handles, i = 0) => {
 	if (_handles == "") return
 	if (i >= contests.length) {
 		const results = processContests()
-		showResults(result)
+		showResults(results)
 		return
 	}	
   
