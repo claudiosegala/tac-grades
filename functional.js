@@ -1,107 +1,275 @@
-// return if something is defined
-const def     = x => typeof x !== 'undefined'
+let html = {}
+let data = {}
+let state = {}
+let users = {}
+let handles = {}
+let contests = []
 
-// return if something is not defined
-const undef   = x => !def(x)
+// Loader
+const infoLoader = (t) => $("#loading-text").text(t)
+const initLoader = () => $("#preloader").css('width', '0%')
+const updLoader  = (i, j) => $("#preloader").css('width', Math.round(100 * (i+1)/j) + '%')
+const showLoader = () => $("#loading").removeClass("hidden")
+const hidLoader  = () => $("#loading").addClass("hidden")
 
-// return the head of the array
-const head    = ([x]) => x
-
-// return the tail of the array
-const tail    = ([x, ...xs]) => xs
-
-// call a function on every element
-const each    = ([x, ...xs], fn, i = 0) => { 
-	if (def(x)) {
-		fn(x, i) 
-		each(xs, fn, i+1)
+const invalid = (i) => {
+	if (state.invalids == 0) {
+		$("#invalids").append("<b>The following handles were not found:</b><br>")
 	}
+
+	state.invalids++
+	$("#invalids").append(state.handles[i]+"<br>")
+	state.handles.splice(i,1)
+	updLoader(i, state.handles.length)
 }
 
-// return a new array with the results of calling a provided function on every element
-const map     = ([x, ...xs], fn) => def(x) ? [fn(x), ...map(xs, fn)] : []
+// Put the grade in the form of UnB
+const calculateGrade = (score) => {
+	let s = $("#scale").val()
+	let n = (10 * score) / s
 
-// return a new array with all elements that pass the test implemented by the provided function
-const filter  = ([x, ...xs], fn) => def(x) 
-	? fn(x)
-		? [x, ...filter(xs, fn)]
-		: [...filter(xs, fn)]
-	: []
+	if (n < 1) return "SR"
+	if (n < 3) return "II"
+	if (n < 5) return "MI"
+	if (n < 7) return "MM"
+	if (n < 9) return "MS"
 
-// return a new array with all elements that fails the test implemented by the provided function
-const reject  = ([x, ...xs], fn) => def(x)  
-	? fn(x)
-		? [...filter(xs, fn)]
-		: [x, ...filter(xs, fn)]
-	: []
+	return "SS"
+} 
 
-// return if the object is an array
-const isArray = xs => Array.isArray(xs)
+const showResults = (results) => {
+	hidLoader()
+    
+	each(results, (r, i) => {
+		let n = "<td>"+(i+1)+"</td>"
+		let handle = "<td>"+r.handle+"</td>"
+		let n_rounds = "<td>"+r.n_rounds+"</td>"
+		let score = "<td>"+r.score+"</td>"
+		let grade = "<td>"+r.grade+"</td>"
+		let scores = "<td>"+r.scores[0]+" | "+r.scores[1]+" | "+r.scores[2]+" | "+r.scores[3]+" | "+r.scores[4]+"</td>"
 
-// return an array of size m and default content
-const array  = (m, v = false) => m
-	? [v, ...array(m-1, v)]
-	: []
+		html.resultsTable.append($("<tr>" + n + handle + n_rounds + score + grade + scores + "</tr>"))
+	})
 
-// return a matrix of size n x m and default content
-const matrix = (n, m, v = false) => n
-	? [array(m, v), ...matrix(n-1, m, v)]
-	: []
+	$("#results").removeClass("hidden")
+}
 
-// make a copy of the array
-const copy    = xs => [...xs]
+const processContests = () => {
+	let result = []
 
-// return the concatenation of two arrays
-const concat  = ([x, ...xs], ys) => def(x) 
-	? [x, ...concat(xs, ys)]
-	: def(head(ys))
-		? [...concat(ys, [])]
-		: []
+	for (let handle in users) {
+		if ("scores" in users[handle]) {
+			let scores = users[handle].scores
+			scores.sort((a, b) => (b - a))
 
-// find the lenght of the array
-const len     = ([x, ...xs]) => def(x) ? 1 + len(xs) : 0
+			let user = {
+				handle:   handle,
+				n_rounds: scores.length,
+				score:    0,
+				scores:   scores	
+			}
 
-const empty   = (xs) => !xs.length
+			const hasEnoughRounds = user.n_rounds >= state.rounds
 
-// reverse the array
-const rev     = ([x, ...xs]) => def(x) ? [...rev(xs), x] : []
+			if (hasEnoughRounds) {
+				for (let j = 0; j < state.rounds; j++) {
+					user.score += scores[j]
+				}
+				user.score /= state.rounds
+				user.score = Math.round(user.score)
+			}
 
-// create a new array with the first n elements
-const first   = ([x, ...xs], n = 1) => def(x) && n ? [x, ...first(xs, n - 1)] : []
+			user.grade = calculateGrade(user.score)
 
-// create a new array with the last n elements
-const last    = (xs, n = 1) => rev(first(rev(xs), n))
+			result.push(user)
+		}
+	}
 
-// insert in a array in the index an element
-const slice   = ([x, ...xs], i, y, curr = 0) => def(x)
-  ? curr === i
-    ? [y, x, ...slice(xs, i, y, curr + 1)]
-    : [x, ...slice(xs, i, y, curr + 1)]
-  : []
+	result.sort((a, b) => {
+		if (a.grade != "SR" && b.grade == "SR") return -1
+		if (a.grade == "SR" && b.grade != "SR") return  1
+		if (a.score != b.score) return b.score - a.score
+		if (a.n != b.n) return b.n - a.n
+		return 0
+	})
 
-// split the array in two, one passing the condition and the rest
-const divide  = (xs, fn) => [filter(xs, fn), reject(xs, fn)]
+	return result
+}
 
-// make an matrix an array
-const flatten = ([x, ...xs]) => def(x)
-	? isArray(x) 
-		? [...flatten(x), ...flatten(xs)] 
-		: [x, ...flatten(xs)]
-	: []
+const computeScoresCF = (rows) => {
+    each(rows, (row) => {
+        const score = reduce(row.problemResults, (s, k) => (s + k.points), 0)
+        const handle = row.party.members[0].handle
+        users[handle].scores.push(score)
+    });
+}
 
-// Applies a function against an accumulator and each element in the array (from left to right) to reduce it to a single value
-const reduce  = ([x, ...xs], fn, acc, i = 0) => def(x)
-	? reduce(xs, fn, fn(acc, x, i), i + 1) 
-	: acc
+const computeScoresICPC = (rows) => {
+    each(data.rows, (row) => {
+        const score = 0
+        row.problemResults = filter(row.problemResults, (res) => (res.points !== 0))
+        each(row.problemResults, (res, i) => {
+            let bestSubmission = Math.floor(res.bestSubmissionTimeSeconds / 60)
+            let rejectedAttempts = res.rejectedAttemptCount
+            let problem_score = 500 * (i+1)
+            let score_when_solved = problem_score * (1 - (0.004) * (bestSubmission))
+            let score_with_penalties = score_when_solved - (50 * rejectedAttempts)
+            let final_score = Math.max(score_with_penalties, problem_score * 0.3)
+            score += final_score
+        })
+        const handle = row.party.members[0].handle
+        users[handle].scores.push(score)
+    })
+} 
 
-// remove duplicated items in array
-const unique  = (xs) => def(xs) ? [... new Set(xs)] : []
+const computeScores = (type, rows) => {
+    if (type === "CF") {
+        computeScoresCF(rows)
+    } else if (type === "ICPC") {
+        computeScoresICPC(rows)
+    }
+}
 
-// Extract property value from array. Useful when combined with the map function
-const pluck   = (key, object) => object[key]
+const request_contests = (_handles, i = 0) => {
+	if (_handles == "") return
+	if (i >= contests.length) {
+		const results = processContests()
+		showResults(results)
+		return
+	}	
+  
+	$.ajax({
+		crossDomain: true,
+		url: "https://codeforces.com/api/contest.standings?contestId="+contests[i]+"&handles="+_handles,
+		error: (res) => {
+			console.log("Error! Response: ")
+			console.log(res)
+		},
+		success: (res) => {
+			updLoader(i, contests.length)
+			computeScores(res.result.contest.type, res.result.rows)
+			request_contests(_handles, i+1)
+		}
+	})
+}
 
-// Each function consumes the return value of the function that came before
-const flow = (...args) => init => reduce(args, (memo, fn) => fn(memo), init)
+// Filter all contest received to get only their ids
+const filterContests = () => {
+	contests = filter(contests, c => c.ratingUpdateTimeSeconds >= start && c.ratingUpdateTimeSeconds <= finish)
+	contests = map(contests, c => c.contestId) // we only need the contest id
+	contests = unique(contests)
+}
 
-// Reverse of flow ex: compose(tax, discount, getPrice) -> (x => tax(discount(getPrice(x))))
-const compose = (...args) => flow(...reverse(args))
+// Init user
+const initUsers = () => {
+    each(state.handles, (handle) => users[handle] = { score: [] })
+}
+
+const initRequestContests = () => {
+	initLoader()
+	infoLoader("Requesting contests...")
+	request_contests(state.handles.join(";"))
+}
+
+// Get rating changes for each user
+// With that get all the contest each participated
+const request_users = (i = 0) => {
+	if (i >= state.handles.length) { // stop recursion and prepare data for requesting contests
+		filterContests()
+		initUsers()
+		initRequestContests()
+		return
+	}
+
+	$.ajax({
+		crossDomain: true,
+		url: "https://codeforces.com/api/user.rating?handle=" + state.handles[i],
+		error:   (res) => {
+			invalid(i)
+		},
+		success: (res) => {
+			updLoader(i, state.handles.length)
+
+			// fix handle (search in case insensitive)
+			state.handles[i] = empty(res.result) ? state.handles[i] : res.result[0].handle
+
+			// add to the contests
+			contests = concat(contests, res.result)
+
+			// call for next user
+			request_users(i+1)
+		}
+	})
+}
+
+const initRequestUsers = () => {
+	initLoader()
+	infoLoader("Requesting users...")
+	showLoader()
+
+	request_users()	
+}
+
+const validateState = () => {
+    if (state.handles && state.handles.length) {
+        return true;
+    } 
+
+    console.log("No valid handles given!");
+
+    return false;
+}
+
+const fillState = () => {
+	// get time
+	// let f = $('#first_day').datepicker().pickadate() // init datepicker
+	// let l = $('#last_day').datepicker().pickadate() // init datepicker
+	// l.set('select', '10-04-2016', { format: 'dd-mm-yyyy' })
+	// console.log(state.start.pickadate().get())
+	// console.log($("#start").val())
+
+	let aux = $("#handles").val().split("\n")
+
+	aux = map(aux, a => a.trim().toLowerCase())
+	aux = filter(aux, h => h.length)
+	aux = unique(aux)
+
+	state.handles = aux
+	state.invalids = 0
+    state.start = new Date($("#start").val()).getTime()/1000
+	state.finish = new Date($("#finish").val()).getTime()/1000 + 86400
+	state.rounds = $("#rounds").val()
+
+    start = state.start
+	finish = state.finish
+}
+
+const init = () => {
+    resultsTable.html('')
+}
+
+// Prepare data for requesting codeforces
+const compute = () => {
+    init()
+	fillState()
+    if (validateState()) {
+	    initRequestUsers()
+    }
+}
+
+// Prepare DOM letiable and init computation
+$(document).ready(() => {
+	// state.start = $('#first_day').datepicker()
+	// state.finish = $('#last_day').datepicker()
+
+	html = {
+		loading: $("#loading"),
+		invalidHandles: document.getElementById('invalidHandles'),
+		results: document.getElementById('results'),
+        resultsTable: $("#results-rows")
+	}
+
+	contests = [] // init contests
+
+	$("#init").click(compute)
+})
