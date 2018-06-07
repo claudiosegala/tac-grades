@@ -39,11 +39,7 @@ const calculateGrade = (score) => {
 
 const showResults = (results) => {
 	hidLoader()
-
-	let resultsTable = $("#results-rows")
-	resultsTable.html('')
-	console.log(resultsTable)
-
+    
 	each(results, (r, i) => {
 		let n = "<td>"+(i+1)+"</td>"
 		let handle = "<td>"+r.handle+"</td>"
@@ -51,7 +47,8 @@ const showResults = (results) => {
 		let score = "<td>"+r.score+"</td>"
 		let grade = "<td>"+r.grade+"</td>"
 		let scores = "<td>"+r.scores[0]+" | "+r.scores[1]+" | "+r.scores[2]+" | "+r.scores[3]+" | "+r.scores[4]+"</td>"
-		resultsTable.append($("<tr>" + n + handle + n_rounds + score + grade + scores + "</tr>"))
+
+		html.resultsTable.append($("<tr>" + n + handle + n_rounds + score + grade + scores + "</tr>"))
 	})
 
 	$("#results").removeClass("hidden")
@@ -163,7 +160,7 @@ const filterContests = () => {
 // Init user
 const initUsers = () => {
 	for (let j = 0; j < state.handles.length; j++) {
-		users[state.handles[j]] = {scores: []}
+		users[state.handles[j]] = { scores: [] }
 	}
 }
 
@@ -212,6 +209,16 @@ const initRequestUsers = () => {
 	request_users()	
 }
 
+const validateState = () => {
+    if (state.handles && state.handles.length) {
+        return true;
+    } 
+
+    console.log("No valid handles given!");
+
+    return false;
+}
+
 const fillState = () => {
 	// get time
 	// let f = $('#first_day').datepicker().pickadate() // init datepicker
@@ -219,14 +226,7 @@ const fillState = () => {
 	// l.set('select', '10-04-2016', { format: 'dd-mm-yyyy' })
 	// console.log(state.start.pickadate().get())
 	// console.log($("#start").val())
-	state.start = new Date($("#start").val()).getTime()/1000
-	state.finish = new Date($("#finish").val()).getTime()/1000 + 86400
-	state.rounds = $("#rounds").val()
 
-	start = state.start
-	finish = state.finish
-
-	// get hadles
 	let aux = $("#handles").val().split("\n")
 
 	aux = map(aux, a => a.trim().toLowerCase())
@@ -234,15 +234,26 @@ const fillState = () => {
 	aux = unique(aux)
 
 	state.handles = aux
-
-	// init 
 	state.invalids = 0
+    state.start = new Date($("#start").val()).getTime()/1000
+	state.finish = new Date($("#finish").val()).getTime()/1000 + 86400
+	state.rounds = $("#rounds").val()
+
+    start = state.start
+	finish = state.finish
+}
+
+const init = () => {
+	resultsTable.html('')
 }
 
 // Prepare data for requesting codeforces
- const compute = () => {
+const compute = () => {
+    init()
 	fillState()
-	initRequestUsers()
+    if (validateState()) {
+	    initRequestUsers()
+    }
 }
 
 // Prepare DOM letiable and init computation
@@ -253,7 +264,8 @@ $(document).ready(() => {
 	html = {
 		loading: $("#loading"),
 		invalidHandles: document.getElementById('invalidHandles'),
-		results: document.getElementById('results')
+		results: document.getElementById('results'),
+        resultsTable: $("#results-rows")
 	}
 
 	contests = [] // init contests
