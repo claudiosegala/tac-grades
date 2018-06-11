@@ -1,8 +1,19 @@
+body {
+	display: flex;
+	justify-content: center;
+	align-items: center;
+}
+
 .cont {
 	display: flex;
 	justify-content: center;
 	align-items: center;
 	flex-direction: column;
+}
+
+.onj {
+	width: 700px;
+	min-height: 600px;
 }
 
 .normal-font {
