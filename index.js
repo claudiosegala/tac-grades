@@ -12,11 +12,11 @@ const loader = {
 
 function invalidHandle (handle) {
 	if (result.invalidHandles.length == 0) {
-		$("#invalids").append("<b>The following handles were not found:</b><br>")
+		$("#invalidHandles").append("<b>The following handles were not found:</b><br>")
 	}
 
 	result.invalidHandles.push(handle)
-	$("#invalids").append(handle+"<br>")
+	$("#invalidHandles").append(handle+"<br>")
 }
 
 // Put the grade in the form of UnB
