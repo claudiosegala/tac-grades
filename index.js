@@ -1,3 +1,6 @@
+let state = {}
+let result = {}
+
 // Loader
 const loader = {
 	info: (t) => $("#loading-text").text(t),
@@ -7,15 +10,13 @@ const loader = {
 	hide: () => $("#loading").addClass("hidden")
 }
 
-function invalid (state, i) {
-	if (state.invalids == 0) {
+function invalidHandle (handle) {
+	if (result.invalidHandles.length == 0) {
 		$("#invalids").append("<b>The following handles were not found:</b><br>")
 	}
 
-	state.invalids++
-	$("#invalids").append(state.handles[i]+"<br>")
-	state.handles.splice(i,1)
-	loader.update(i, state.handles.length)
+	result.invalidHandles.push(handle)
+	$("#invalids").append(handle+"<br>")
 }
 
 // Put the grade in the form of UnB
@@ -37,7 +38,7 @@ function showResults (results) {
 
 
 	let resultsTable = $("#results-rows")
-    
+	
 	each(results, (r, i) => {
 		let n = "<td>"+(i+1)+"</td>"
 		let handle = "<td>"+r.handle+"</td>"
@@ -52,12 +53,12 @@ function showResults (results) {
 	$("#results").removeClass("hidden")
 }
 
-function processContests (state) {
-	let result = []
+function processContests () {
+	let res = []
 
-	for (let handle in state.users) {
-		if ("scores" in state.users[handle]) {
-			let scores = state.users[handle].scores
+	for (let handle in result.users) {
+		if ("scores" in result.users[handle]) {
+			let scores = result.users[handle].scores
 			scores.sort((a, b) => (b - a))
 
 			let user = {
@@ -79,11 +80,11 @@ function processContests (state) {
 
 			user.grade = calculateGrade(user.score)
 
-			result.push(user)
+			res.push(user)
 		}
 	}
 
-	result.sort((a, b) => {
+	res.sort((a, b) => {
 		if (a.grade != "SR" && b.grade == "SR") return -1
 		if (a.grade == "SR" && b.grade != "SR") return  1
 		if (a.score != b.score) return b.score - a.score
@@ -91,95 +92,99 @@ function processContests (state) {
 		return 0
 	})
 
-	return result
+	return res
 }
 
-function computeScores_CF (state, rows) {
-    each(rows, (row) => {
-        const score = reduce(row.problemResults, (s, k) => (s + k.points), 0)
-        const handle = row.party.members[0].handle
-        state.users[handle].scores.push(score)
-    });
+function computeScores_CF (rows) {
+	each(rows, (row) => {
+		const score = reduce(row.problemResults, (s, k) => (s + k.points), 0)
+		const handle = row.party.members[0].handle
+		console.log(result.users[handle])
+		result.users[handle].scores.push(score)
+	});
 }
 
-function computeScores_ICPC (state, rows) {
-    each(rows, (row) => {
-        const score = 0
-        row.problemResults = filter(row.problemResults, (res) => (res.points !== 0))
-        each(row.problemResults, (res, i) => {
-            let bestSubmission = Math.floor(res.bestSubmissionTimeSeconds / 60)
-            let rejectedAttempts = res.rejectedAttemptCount
-            let problem_score = 500 * (i+1)
-            let score_when_solved = problem_score * (1 - (0.004) * (bestSubmission))
-            let score_with_penalties = score_when_solved - (50 * rejectedAttempts)
-            let final_score = Math.max(score_with_penalties, problem_score * 0.3)
-            score += final_score
-        })
-        const handle = row.party.members[0].handle
-        state.users[handle].scores.push(score)
-    })
+function computeScores_ICPC (rows) {
+	each(rows, (row) => {
+		let score = 0
+
+		row.problemResults = filter(row.problemResults, (res) => (res.points !== 0))
+
+		each(row.problemResults, (res, i) => {
+			let bestSubmission = Math.floor(res.bestSubmissionTimeSeconds / 60)
+			let rejectedAttempts = res.rejectedAttemptCount
+			let problem_score = 500 * (i+1)
+			let score_when_solved = problem_score * (1 - (0.004) * (bestSubmission))
+			let score_with_penalties = score_when_solved - (50 * rejectedAttempts)
+			let final_score = Math.max(score_with_penalties, problem_score * 0.3)
+			score += final_score
+		})
+
+		const handle = row.party.members[0].handle
+		result.users[handle].scores.push(score)
+	})
 } 
 
-function computeScores (state, type, rows) {
-    if (type === "CF") {
-        computeScores_CF(state, rows)
-    } else if (type === "ICPC") {
-        computeScores_ICPC(state, rows)
-    }
+function computeScores (type, rows) {
+	if (type === "CF") {
+		computeScores_CF(rows)
+	} else if (type === "ICPC") {
+		computeScores_ICPC(rows)
+	}
 }
 
-function requestContests (state, i = 0) {
-	if (i >= state.contests.length) {
-		const results = processContests(state)
+function requestContests (i = 0) {
+	if (i >= result.contests.length) {
+		const results = processContests()
 		showResults(results)
 		return
 	}	
   
 	$.ajax({
 		crossDomain: true,
-		url: "https://codeforces.com/api/contest.standings?contestId="+state.contests[i]+"&handles="+state.handlesStr,
+		url: "https://codeforces.com/api/contest.standings?contestId="+result.contests[i]+"&handles="+result.handlesStr,
 		error: (res) => {
-			console.log("Error! Response: ")
-			console.log(res)
+			console.log("Error! Response: " + res)
 		},
 		success: (res) => {
-			loader.update(i, state.contests.length)
-			computeScores(state, res.result.contest.type, res.result.rows)
-			requestContests(state, i+1)
+			loader.update(i, result.contests.length)
+			computeScores(res.result.contest.type, res.result.rows)
+			requestContests(i+1)
 		}
 	})
 }
 
-// Filter all contest received to get only their ids
-function filterContests (state) {
-	state.contests = filter(state.contests, c => (c.ratingUpdateTimeSeconds >= state.start) && (c.ratingUpdateTimeSeconds <= state.finish))
-	state.contests = map(state.contests, c => c.contestId) // we only need the contest id
-	state.contests = unique(state.contests)
-}
-
-// Init user
-function initUsers (state) {
-    each(state.handles, (handle) => state.users[handle] = { score: [] })
-}
-
-function initRequestContests (state) {
+function initRequestContests () {
 	loader.start()
 	loader.info("Requesting contests...")
 
-	state.handlesStr = state.handles.join(";")
+	result.handlesStr = result.handles.join(";")
 
-	if (state.handlesStr != "") {
-		requestContests(state)	
+	if (result.handlesStr != "") {
+		requestContests()	
 	}
+}
+
+// Init user
+function initUsers () {
+	each(result.handles, (handle) => result.users[handle] = { scores: [] })
+}
+
+// Filter all contest received to get only their ids
+function filterContests () {
+	result.contests = filter(result.contests, c => (c.ratingUpdateTimeSeconds >= state.startTime) && (c.ratingUpdateTimeSeconds <= state.finishTime))
+	result.contests = map(result.contests, c => c.contestId) // we only need the contest id
+	result.contests = unique(result.contests)
 }
 
 // Get rating changes for each user
 // With that get all the contest each participated
-function requestUsers (state, i = 0) {
+// TODO: see how it behaves with invalid handle
+function requestUsers (i = 0) {
 	if (i >= state.handles.length) {
-		filterContests(state)
-		initUsers(state)
-		initRequestContests(state)
+		filterContests()
+		initUsers()
+		initRequestContests()
 		return
 	}
 
@@ -187,47 +192,51 @@ function requestUsers (state, i = 0) {
 		crossDomain: true,
 		url: "https://codeforces.com/api/user.rating?handle=" + state.handles[i],
 		error:   (res) => {
-			invalid(state, i)
-		},
-		success: (res) => {
 			loader.update(i, state.handles.length)
 
-			// fix handle (search in case insensitive)
-			state.handles[i] = empty(res.result) ? state.handles[i] : res.result[0].handle
+			invalidHandle(state.handles[i])
 
-			// add to the contests
-			state.contests = concat(state.contests, res.result)
+			requestUsers(i+1)
+		},
+		success: (res) => {
+			const contests = res.result;
 
-			// call for next user
-			requestUsers(state, i+1)
+			loader.update(i, state.handles.length)
+
+			const handle = empty(contests) ? state.handles[i] : contests[0].handle
+			result.handles.push(handle); // get handles correct (search is case insensitive)
+
+			result.contests = concat(result.contests, contests)
+
+			requestUsers(i+1)
 		}
 	})
 }
 
-function initRequestUsers (state) {
+function initRequestUsers () {
 	loader.start()
 	loader.info("Requesting users...")
 	loader.show()
 
-	requestUsers(state)	
+	requestUsers()	
 }
 
-function validateState (state) {
-    if (state.handles && state.handles.length) {
-        return true;
-    } 
+function validateState () {
+	if (state.handles && state.handles.length) {
+		return true;
+	} 
 
-    console.log("No valid handles given!");
+	console.log("No valid handles given!"); // TODO: give an alert to user
 
-    return false;
+	return false;
 }
 
-function fillState (state) {
+function getState () {
 	// get time
 	// let f = $('#first_day').datepicker().pickadate() // init datepicker
 	// let l = $('#last_day').datepicker().pickadate() // init datepicker
 	// l.set('select', '10-04-2016', { format: 'dd-mm-yyyy' })
-	// console.log(state.start.pickadate().get())
+	// console.log(state.startTime.pickadate().get())
 	// console.log($("#start").val())
 
 	let aux = $("#handles").val().split("\n")
@@ -237,33 +246,38 @@ function fillState (state) {
 	aux = unique(aux)
 
 	state.handles = aux
-	state.invalids = 0
-    state.start = new Date($("#start").val()).getTime()/1000
-	state.finish = new Date($("#finish").val()).getTime()/1000 + 86400
+	state.startTime = new Date($("#start").val()).getTime()/1000
+	state.finishTime = new Date($("#finish").val()).getTime()/1000 + 86400
 	state.rounds = $("#rounds").val()
 }
 
+// prepare the result object
 function init () {
-	let resultsTable = $("#results-rows")
+	$("#results-rows").html('')
 
-    resultsTable.html('')
+	result = {
+		contests: [],
+		users: {},
+		handles: [],
+		handlesStr: "",
+		invalidHandles: []
+	}
 }
 
 // Prepare data for requesting codeforces
 function compute () {
-	let state = {}
+	init()
+	getState()
 
-    init()
-	fillState(state)
-    if (validateState(state)) {
-	    initRequestUsers(state)
-    }
+	if (validateState()) {
+		initRequestUsers()
+	}
 }
 
 // Prepare DOM letiable and init computation
 $(document).ready(() => {
-	// state.start = $('#first_day').datepicker()
-	// state.finish = $('#last_day').datepicker()
+	// state.startTime = $('#first_day').datepicker()
+	// state.finishTime = $('#last_day').datepicker()
 
 	$("#init").click(compute)
 })
