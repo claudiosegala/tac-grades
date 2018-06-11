@@ -173,6 +173,19 @@ function initUsers () {
 // Filter all contest received to get only their ids
 function filterContests () {
 	result.contests = filter(result.contests, c => (c.ratingUpdateTimeSeconds >= state.startTime) && (c.ratingUpdateTimeSeconds <= state.finishTime))
+
+	if (!state.enableDiv1) {
+		result.contests = filter(result.contests, c => c.contestName.toLowerCase().search("div. 1") == -1)	
+	}
+
+	if (!state.enableDiv2) {
+		result.contests = filter(result.contests, c => c.contestName.toLowerCase().search("div. 2") == -1)	
+	}
+
+	if (!state.enableDiv3) {
+		result.contests = filter(result.contests, c => c.contestName.toLowerCase().search("div. 3") == -1)	
+	}
+	
 	result.contests = map(result.contests, c => c.contestId) // we only need the contest id
 	result.contests = unique(result.contests)
 }
@@ -245,6 +258,9 @@ function getState () {
 	aux = filter(aux, h => h.length)
 	aux = unique(aux)
 
+	state.enableDiv1 = $('#div1').prop('checked')
+	state.enableDiv2 = $('#div2').prop('checked')
+	state.enableDiv3 = $('#div3').prop('checked')
 	state.handles = aux
 	state.startTime = new Date($("#start").val()).getTime()/1000
 	state.finishTime = new Date($("#finish").val()).getTime()/1000 + 86400
