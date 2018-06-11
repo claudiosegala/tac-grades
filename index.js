@@ -1,18 +1,13 @@
-let html = {}
-let data = {}
-let state = {}
-let users = {}
-let handles = {}
-let contests = []
-
 // Loader
-const infoLoader = (t) => $("#loading-text").text(t)
-const initLoader = () => $("#preloader").css('width', '0%')
-const updLoader  = (i, j) => $("#preloader").css('width', Math.round(100 * (i+1)/j) + '%')
-const showLoader = () => $("#loading").removeClass("hidden")
-const hidLoader  = () => $("#loading").addClass("hidden")
+const loader = {
+	info: (t) => $("#loading-text").text(t),
+	start: () => $("#preloader").css('width', '0%'),
+	update: (i, j) => $("#preloader").css('width', Math.round(100 * (i+1)/j) + '%'),
+	show: () => $("#loading").removeClass("hidden"),
+	hide: () => $("#loading").addClass("hidden")
+}
 
-const invalid = (i) => {
+function invalid (state, i) {
 	if (state.invalids == 0) {
 		$("#invalids").append("<b>The following handles were not found:</b><br>")
 	}
@@ -20,11 +15,11 @@ const invalid = (i) => {
 	state.invalids++
 	$("#invalids").append(state.handles[i]+"<br>")
 	state.handles.splice(i,1)
-	updLoader(i, state.handles.length)
+	loader.update(i, state.handles.length)
 }
 
 // Put the grade in the form of UnB
-const calculateGrade = (score) => {
+function calculateGrade (score) {
 	let s = $("#scale").val()
 	let n = (10 * score) / s
 
@@ -37,8 +32,11 @@ const calculateGrade = (score) => {
 	return "SS"
 } 
 
-const showResults = (results) => {
-	hidLoader()
+function showResults (results) {
+	loader.hide()
+
+
+	let resultsTable = $("#results-rows")
     
 	each(results, (r, i) => {
 		let n = "<td>"+(i+1)+"</td>"
@@ -48,18 +46,18 @@ const showResults = (results) => {
 		let grade = "<td>"+r.grade+"</td>"
 		let scores = "<td>"+r.scores[0]+" | "+r.scores[1]+" | "+r.scores[2]+" | "+r.scores[3]+" | "+r.scores[4]+"</td>"
 
-		html.resultsTable.append($("<tr>" + n + handle + n_rounds + score + grade + scores + "</tr>"))
+		resultsTable.append($("<tr>" + n + handle + n_rounds + score + grade + scores + "</tr>"))
 	})
 
 	$("#results").removeClass("hidden")
 }
 
-const processContests = () => {
+function processContests (state) {
 	let result = []
 
-	for (let handle in users) {
-		if ("scores" in users[handle]) {
-			let scores = users[handle].scores
+	for (let handle in state.users) {
+		if ("scores" in state.users[handle]) {
+			let scores = state.users[handle].scores
 			scores.sort((a, b) => (b - a))
 
 			let user = {
@@ -96,16 +94,16 @@ const processContests = () => {
 	return result
 }
 
-const computeScoresCF = (rows) => {
+function computeScores_CF (state, rows) {
     each(rows, (row) => {
         const score = reduce(row.problemResults, (s, k) => (s + k.points), 0)
         const handle = row.party.members[0].handle
-        users[handle].scores.push(score)
+        state.users[handle].scores.push(score)
     });
 }
 
-const computeScoresICPC = (rows) => {
-    each(data.rows, (row) => {
+function computeScores_ICPC (state, rows) {
+    each(rows, (row) => {
         const score = 0
         row.problemResults = filter(row.problemResults, (res) => (res.points !== 0))
         each(row.problemResults, (res, i) => {
@@ -118,66 +116,70 @@ const computeScoresICPC = (rows) => {
             score += final_score
         })
         const handle = row.party.members[0].handle
-        users[handle].scores.push(score)
+        state.users[handle].scores.push(score)
     })
 } 
 
-const computeScores = (type, rows) => {
+function computeScores (state, type, rows) {
     if (type === "CF") {
-        computeScoresCF(rows)
+        computeScores_CF(state, rows)
     } else if (type === "ICPC") {
-        computeScoresICPC(rows)
+        computeScores_ICPC(state, rows)
     }
 }
 
-const request_contests = (_handles, i = 0) => {
-	if (_handles == "") return
-	if (i >= contests.length) {
-		const results = processContests()
+function requestContests (state, i = 0) {
+	if (i >= state.contests.length) {
+		const results = processContests(state)
 		showResults(results)
 		return
 	}	
   
 	$.ajax({
 		crossDomain: true,
-		url: "https://codeforces.com/api/contest.standings?contestId="+contests[i]+"&handles="+_handles,
+		url: "https://codeforces.com/api/contest.standings?contestId="+state.contests[i]+"&handles="+state.handlesStr,
 		error: (res) => {
 			console.log("Error! Response: ")
 			console.log(res)
 		},
 		success: (res) => {
-			updLoader(i, contests.length)
-			computeScores(res.result.contest.type, res.result.rows)
-			request_contests(_handles, i+1)
+			loader.update(i, state.contests.length)
+			computeScores(state, res.result.contest.type, res.result.rows)
+			requestContests(state, i+1)
 		}
 	})
 }
 
 // Filter all contest received to get only their ids
-const filterContests = () => {
-	contests = filter(contests, c => c.ratingUpdateTimeSeconds >= start && c.ratingUpdateTimeSeconds <= finish)
-	contests = map(contests, c => c.contestId) // we only need the contest id
-	contests = unique(contests)
+function filterContests (state) {
+	state.contests = filter(state.contests, c => (c.ratingUpdateTimeSeconds >= state.start) && (c.ratingUpdateTimeSeconds <= state.finish))
+	state.contests = map(state.contests, c => c.contestId) // we only need the contest id
+	state.contests = unique(state.contests)
 }
 
 // Init user
-const initUsers = () => {
-    each(state.handles, (handle) => users[handle] = { score: [] })
+function initUsers (state) {
+    each(state.handles, (handle) => state.users[handle] = { score: [] })
 }
 
-const initRequestContests = () => {
-	initLoader()
-	infoLoader("Requesting contests...")
-	request_contests(state.handles.join(";"))
+function initRequestContests (state) {
+	loader.start()
+	loader.info("Requesting contests...")
+
+	state.handlesStr = state.handles.join(";")
+
+	if (state.handlesStr != "") {
+		requestContests(state)	
+	}
 }
 
 // Get rating changes for each user
 // With that get all the contest each participated
-const request_users = (i = 0) => {
-	if (i >= state.handles.length) { // stop recursion and prepare data for requesting contests
-		filterContests()
-		initUsers()
-		initRequestContests()
+function requestUsers (state, i = 0) {
+	if (i >= state.handles.length) {
+		filterContests(state)
+		initUsers(state)
+		initRequestContests(state)
 		return
 	}
 
@@ -185,32 +187,32 @@ const request_users = (i = 0) => {
 		crossDomain: true,
 		url: "https://codeforces.com/api/user.rating?handle=" + state.handles[i],
 		error:   (res) => {
-			invalid(i)
+			invalid(state, i)
 		},
 		success: (res) => {
-			updLoader(i, state.handles.length)
+			loader.update(i, state.handles.length)
 
 			// fix handle (search in case insensitive)
 			state.handles[i] = empty(res.result) ? state.handles[i] : res.result[0].handle
 
 			// add to the contests
-			contests = concat(contests, res.result)
+			state.contests = concat(state.contests, res.result)
 
 			// call for next user
-			request_users(i+1)
+			requestUsers(state, i+1)
 		}
 	})
 }
 
-const initRequestUsers = () => {
-	initLoader()
-	infoLoader("Requesting users...")
-	showLoader()
+function initRequestUsers (state) {
+	loader.start()
+	loader.info("Requesting users...")
+	loader.show()
 
-	request_users()	
+	requestUsers(state)	
 }
 
-const validateState = () => {
+function validateState (state) {
     if (state.handles && state.handles.length) {
         return true;
     } 
@@ -220,7 +222,7 @@ const validateState = () => {
     return false;
 }
 
-const fillState = () => {
+function fillState (state) {
 	// get time
 	// let f = $('#first_day').datepicker().pickadate() // init datepicker
 	// let l = $('#last_day').datepicker().pickadate() // init datepicker
@@ -239,21 +241,22 @@ const fillState = () => {
     state.start = new Date($("#start").val()).getTime()/1000
 	state.finish = new Date($("#finish").val()).getTime()/1000 + 86400
 	state.rounds = $("#rounds").val()
-
-    start = state.start
-	finish = state.finish
 }
 
-const init = () => {
+function init () {
+	let resultsTable = $("#results-rows")
+
     resultsTable.html('')
 }
 
 // Prepare data for requesting codeforces
-const compute = () => {
+function compute () {
+	let state = {}
+
     init()
-	fillState()
-    if (validateState()) {
-	    initRequestUsers()
+	fillState(state)
+    if (validateState(state)) {
+	    initRequestUsers(state)
     }
 }
 
@@ -261,15 +264,6 @@ const compute = () => {
 $(document).ready(() => {
 	// state.start = $('#first_day').datepicker()
 	// state.finish = $('#last_day').datepicker()
-
-	html = {
-		loading: $("#loading"),
-		invalidHandles: document.getElementById('invalidHandles'),
-		results: document.getElementById('results'),
-        resultsTable: $("#results-rows")
-	}
-
-	contests = [] // init contests
 
 	$("#init").click(compute)
 })
