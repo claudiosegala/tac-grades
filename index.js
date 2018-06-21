@@ -175,16 +175,22 @@ function filterContests () {
 	result.contests = filter(result.contests, c => (c.ratingUpdateTimeSeconds >= state.startTime) && (c.ratingUpdateTimeSeconds <= state.finishTime))
 
 	if (!state.enableDiv1) {
-		result.contests = filter(result.contests, c => c.contestName.toLowerCase().search("div. 1") == -1)	
+		result.contests = filter(result.contests, c => c.contestName.toLowerCase().search("div. 1") == -1)
 	}
 
 	if (!state.enableDiv2) {
-		result.contests = filter(result.contests, c => c.contestName.toLowerCase().search("div. 2") == -1)	
+		result.contests = filter(result.contests, c => c.contestName.toLowerCase().search("div. 2") == -1)
 	}
 
+	// if (!(state.enableDiv1 && state.enableDiv2)) {
+	// 	result.contests = filter(result.contests, c => c.contestName.toLowerCase().search("div.") != -1)
+	// }
+
 	if (!state.enableDiv3) {
-		result.contests = filter(result.contests, c => c.contestName.toLowerCase().search("div. 3") == -1)	
+		result.contests = filter(result.contests, c => c.contestName.toLowerCase().search("div. 3") == -1)
 	}
+
+	console.log(result.contests)
 	
 	result.contests = map(result.contests, c => c.contestId) // we only need the contest id
 	result.contests = unique(result.contests)
