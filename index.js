@@ -33,6 +33,19 @@ function calculateGrade (score) {
 	return "SS"
 }
 
+function generateScore (scores) {
+	if (!Array.isArray(scores) || !scores.length) {
+		return "-";
+	}
+
+	let result = "| " + scores[0];
+	each(scores.slice(1, 5), (score) => {
+		result += score + " | ";
+	});
+
+	return result;
+}
+
 function showResults (results) {
 	loader.hide()
 
@@ -45,7 +58,7 @@ function showResults (results) {
 		let n_rounds = "<td>"+r.n_rounds+"</td>"
 		let score = "<td>"+r.score+"</td>"
 		let grade = "<td>"+r.grade+"</td>"
-		let scores = "<td>"+r.scores[0]+" | "+r.scores[1]+" | "+r.scores[2]+" | "+r.scores[3]+" | "+r.scores[4]+"</td>"
+		let scores = "<td>" + generateScore(r.scores) + "</td>"
 
 		resultsTable.append($("<tr>" + n + handle + n_rounds + score + grade + scores + "</tr>"))
 	})
