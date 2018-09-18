@@ -31,14 +31,14 @@ function calculateGrade (score) {
 	if (n < 9) return "MS"
 
 	return "SS"
-} 
+}
 
 function showResults (results) {
 	loader.hide()
 
 
 	let resultsTable = $("#results-rows")
-	
+
 	each(results, (r, i) => {
 		let n = "<td>"+(i+1)+"</td>"
 		let handle = "<td>"+r.handle+"</td>"
@@ -65,7 +65,7 @@ function processContests () {
 				handle:   handle,
 				n_rounds: scores.length,
 				score:    0,
-				scores:   scores	
+				scores:   scores
 			}
 
 			const hasEnoughRounds = user.n_rounds >= state.rounds
@@ -123,7 +123,7 @@ function computeScores_ICPC (rows) {
 		const handle = row.party.members[0].handle
 		result.users[handle].scores.push(score)
 	})
-} 
+}
 
 function computeScores (type, rows) {
 	if (type === "CF") {
@@ -138,8 +138,8 @@ function requestContests (i = 0) {
 		const results = processContests()
 		showResults(results)
 		return
-	}	
-  
+	}
+
 	$.ajax({
 		crossDomain: true,
 		url: "https://codeforces.com/api/contest.standings?contestId="+result.contests[i]+"&handles="+result.handlesStr,
@@ -161,7 +161,7 @@ function initRequestContests () {
 	result.handlesStr = result.handles.join(";")
 
 	if (result.handlesStr != "") {
-		requestContests()	
+		requestContests()
 	}
 }
 
@@ -191,7 +191,7 @@ function filterContests () {
 	}
 
 	console.log(result.contests)
-	
+
 	result.contests = map(result.contests, c => c.contestId) // we only need the contest id
 	result.contests = unique(result.contests)
 }
@@ -237,13 +237,13 @@ function initRequestUsers () {
 	loader.info("Requesting users...")
 	loader.show()
 
-	requestUsers()	
+	requestUsers()
 }
 
 function validateState () {
 	if (state.handles && state.handles.length) {
 		return true;
-	} 
+	}
 
 	console.log("No valid handles given!"); // TODO: give an alert to user
 
