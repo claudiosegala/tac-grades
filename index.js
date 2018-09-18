@@ -38,9 +38,9 @@ function generateScore (scores) {
 		return "-";
 	}
 
-	let result = "| " + scores[0];
+	let result = scores[0];
 	each(scores.slice(1, 5), (score) => {
-		result += score + " | ";
+		result += " | " + score ;
 	});
 
 	return result;
